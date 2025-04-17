@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda Sencilla</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>Mi Agenda <span class="huella-capibara"></span></h1>
+        <form id="form-tarea">
+            <input type="text" id="nueva-tarea" placeholder="Agregar nueva tarea" required>
+            <input type="date" id="fecha-tarea" required>
+            <select id="prioridad">
+                <option value="normal">Normal</option>
+                <option value="importante">Importante</option>
+                <option value="urgente">Urgente</option>
+            </select>
+            <input type="text" id="nota-tarea" placeholder="Nota o descripción (opcional)">
+            <button type="submit">Agregar</button>
+        </form>
+        <div class="fecha-actual" id="fecha-actual"></div>
+        <div class="contador" id="contador"></div>
+        <div class="filtros">
+            <button id="filtro-todas" class="filtro activo">Todas</button>
+            <button id="filtro-normal" class="filtro">Normal</button>
+            <button id="filtro-importante" class="filtro">Importante</button>
+            <button id="filtro-urgente" class="filtro">Urgente</button>
+        </div>
+        <ul id="lista-tareas">
+            <!-- Las tareas aparecerán aquí -->
+        </ul>
+        <!-- Galería de capibaras eliminada -->
+    </div>
+    <div class="capibara-mascota"></div>
+    <div class="capibara-burbuja">
+        <img src="https://img.freepik.com/vector-gratis/lindo-personaje-capibara-diferentes-poses_107791-30689.jpg?t=st=1744863805~exp=1744867405~hmac=c774bf8c6815639919ceda9205d5d5be5d42c741af2557662839dd9a7d7a9b23&w=1380"
+            alt="Capibara burbuja" class="capibara-burbuja-img-real">
+        <span>¡Hola! Soy tu capibara y te ayudo a organizar tu día 🦫</span>
+    </div>
+    <script>
+        const form = document.getElementById('form-tarea');
+        const input = document.getElementById('nueva-tarea');
+        const lista = document.getElementById('lista-tareas');
+        const prioridad = document.getElementById('prioridad');
+        const filtros = document.querySelectorAll('.filtro');
+        const fechaTarea = document.getElementById('fecha-tarea');
+        const fechaActualDiv = document.getElementById('fecha-actual');
+        const contadorDiv = document.getElementById('contador');
+        let tareas = [];
+        let filtroActual = 'todas';
+
+        function guardarTareas() {
+            localStorage.setItem('tareas', JSON.stringify(tareas));
+        }
+
+        function cargarTareas() {
+            const guardadas = localStorage.getItem('tareas');
+            if (guardadas) tareas = JSON.parse(guardadas);
+        }
+
+        function renderTareas() {
+            lista.innerHTML = '';
+            let tareasFiltradas = tareas.filter(t => filtroActual === 'todas' || t.prioridad === filtroActual);
+            tareasFiltradas.forEach((tarea, idx) => {
+                const li = document.createElement('li');
+                li.className = `animada ${tarea.prioridad}`;
+                if (tarea.completada) li.classList.add('completada');
+                li.innerHTML = `
+                    <input type="checkbox" class="check-completada" ${tarea.completada ? 'checked' : ''}>
+                    <span class="texto-tarea">${tarea.texto}</span>
+                    <span class="huella-capibara"></span>
+                    <span class="fecha-tarea">${tarea.fecha}</span>
+                    <span class="etiqueta">${tarea.prioridad.charAt(0).toUpperCase() + tarea.prioridad.slice(1)}</span>
+                    <button class="editar">Editar</button>
+                    ${tarea.nota ? `<div class='nota-tarea'>📝 ${tarea.nota}</div>` : ''}
+                `;
+                const btnEliminar = document.createElement('button');
+                btnEliminar.textContent = 'Eliminar';
+                btnEliminar.className = 'eliminar';
+                btnEliminar.onclick = function () {
+                    if (confirm('¿Seguro que deseas eliminar esta tarea?')) {
+                        li.classList.add('eliminando');
+                        setTimeout(() => {
+                            tareas.splice(idx, 1);
+                            guardarTareas();
+                            renderTareas();
+                        }, 400);
+                    }
+                };
+                li.appendChild(btnEliminar);
+                // Evento para marcar como completada
+                li.querySelector('.check-completada').addEventListener('change', function () {
+                    tarea.completada = this.checked;
+                    guardarTareas();
+                    renderTareas();
+                });
+                // Evento para editar tarea
+                li.querySelector('.editar').addEventListener('click', function () {
+                    editarTarea(idx);
+                });
+                lista.appendChild(li);
+                setTimeout(() => li.classList.add('visible'), 10);
+            });
+            // Contador de tareas
+            const completadas = tareas.filter(t => t.completada).length;
+            const pendientes = tareas.length - completadas;
+            contadorDiv.textContent = `Tareas mostradas: ${tareasFiltradas.length} / Total: ${tareas.length} | Completadas: ${completadas} | Pendientes: ${pendientes}`;
+        }
+
+        // Función para editar tarea
+        function editarTarea(idx) {
+            const tarea = tareas[idx];
+            // Crear modal simple para edición
+            const modal = document.createElement('div');
+            modal.className = 'modal-editar';
+            modal.innerHTML = `
+                <div class="modal-contenido">
+                    <h3>Editar tarea</h3>
+                    <label>Texto:<br><input type="text" id="edit-texto" value="${tarea.texto}"></label><br>
+                    <label>Fecha:<br><input type="date" id="edit-fecha" value="${tarea.fecha}"></label><br>
+                    <label>Prioridad:<br>
+                        <select id="edit-prioridad">
+                            <option value="normal" ${tarea.prioridad === 'normal' ? 'selected' : ''}>Normal</option>
+                            <option value="importante" ${tarea.prioridad === 'importante' ? 'selected' : ''}>Importante</option>
+                            <option value="urgente" ${tarea.prioridad === 'urgente' ? 'selected' : ''}>Urgente</option>
+                        </select>
+                    </label><br>
+                    <label>Nota:<br><input type="text" id="edit-nota" value="${tarea.nota ? tarea.nota.replace(/"/g, '&quot;') : ''}"></label><br>
+                    <button id="guardar-edicion">Guardar</button>
+                    <button id="cancelar-edicion">Cancelar</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            // Guardar cambios
+            modal.querySelector('#guardar-edicion').onclick = function () {
+                const nuevoTexto = modal.querySelector('#edit-texto').value.trim();
+                const nuevaFecha = modal.querySelector('#edit-fecha').value;
+                const nuevaPrioridad = modal.querySelector('#edit-prioridad').value;
+                const nuevaNota = modal.querySelector('#edit-nota').value.trim();
+                if (nuevoTexto && nuevaFecha) {
+                    tarea.texto = nuevoTexto;
+                    tarea.fecha = nuevaFecha;
+                    tarea.prioridad = nuevaPrioridad;
+                    tarea.nota = nuevaNota;
+                    guardarTareas();
+                    renderTareas();
+                    document.body.removeChild(modal);
+                } else {
+                    alert('Por favor, completa todos los campos.');
+                }
+            };
+            // Cancelar edición
+            modal.querySelector('#cancelar-edicion').onclick = function () {
+                document.body.removeChild(modal);
+            };
+        }
+
+        // Mostrar fecha actual
+        function mostrarFechaActual() {
+            const hoy = new Date();
+            const opciones = { year: 'numeric', month: 'long', day: 'numeric' };
+            fechaActualDiv.textContent = 'Hoy es ' + hoy.toLocaleDateString('es-ES', opciones);
+        }
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            if (input.value.trim() !== '' && fechaTarea.value) {
+                tareas.push({
+                    texto: input.value,
+                    prioridad: prioridad.value,
+                    fecha: fechaTarea.value,
+                    completada: false,
+                    nota: document.getElementById('nota-tarea').value.trim()
+                });
+                guardarTareas();
+                renderTareas();
+                input.value = '';
+                fechaTarea.value = '';
+                prioridad.value = 'normal';
+                document.getElementById('nota-tarea').value = '';
+            }
+        });
+
+        filtros.forEach(f => {
+            f.addEventListener('click', function () {
+                filtros.forEach(btn => btn.classList.remove('activo'));
+                this.classList.add('activo');
+                filtroActual = this.id.replace('filtro-', '');
+                renderTareas();
+            });
+        });
+
+        cargarTareas();
+        mostrarFechaActual();
+        renderTareas();
+    </script>
+</body>
+
+</html>
